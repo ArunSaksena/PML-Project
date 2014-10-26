@@ -1,0 +1,121 @@
+---
+title: "Practical Machine Learning Project"
+author: "Student 1, Practical Machine Learning, Coursera"
+date: "October 21, 2014"
+output: html_document
+
+
+---
+## Executive Summary
+
+## NOTE:  I could not get my code to work.  I am submitting the work as is.  Apologies.
+
+1. **Predicting the manner of a Weight Lifting Exercise**
+The goal of this project is to predict the manner of a Weight Lifting Exercise.  The Training Dataset has 19,622 rows and 160 variables.  The variable "classe" (variable 160) is the response, and any of the other 159 variables can be used as predictors.  The "classe" variable can take on five different values:  A, B, C, D and E.  Class A is the "right way" to exercise;  the other 4 classes represent various mistakes.
+
+Question:  Predict how well the exercise was performed (as determined by the "classe" variable) based on a set of data from accelerometers, gyroscopes and magnetometers placed on the belt, forearm, arm and dumbell.
+
+
+## Approach, Discussion and Modeling
+
+The approach to analysis will be as follows:
+
+(1) **Cross-Validation**  In this step, we will split the Training Data Set (as provided in pml-training.csv) further into a Train and Test Dataset.  We use the caret package and the createDataPartition function.  We will also use the nearZeroVar to identify and remove any zero covariates.  We also create two new data frames -- newtraining and newtesting that do not have the zero covariates.  In order to apply PCA, we need to convert factor variables into numeric for both training and testing datasets.
+
+
+```{r}
+
+library(caret)
+setwd("Training Data")
+set.seed(3434)
+myData <- read.csv("pml-training.csv", header = TRUE)
+inTrain <- createDataPartition(y = myData$classe, p = 0.75, list = FALSE)
+training <- myData[inTrain,]
+testing <- myData[-inTrain,]
+nsv <- nearZeroVar(training, saveMetrics = TRUE)
+nsv
+table(nsv$nzv)
+c <- 1
+j <- 1
+for (i in 1:nrow(nsv)) {
+   if (!nsv[i, "nzv"]) {
+        c[j] <- i
+        j <- j + 1
+   }
+}
+
+for (i in 1:ncol(training)) {
+    if (class(training[,i]) == "factor") {
+        training[,i] <- as.numeric(training[,i])
+    }
+}
+
+for (i in 1:ncol(testing)) {
+    if (class(testing[,i]) == "factor") {
+        testing[,i] <- as.numeric(testing[,i])
+    }
+}
+
+newtraining <- data.frame(x = training[, c[1]])
+newtesting <- data.frame(x = testing[, c[1]])
+
+j <- 1
+
+for (i in 1: length(c)) {
+    newtraining[,i] <- training[,c[j]]
+    newtesting[,i] <- testing[,c[j]]
+    j <- j + 1
+}
+
+myNames <- character()
+j <- 1
+for (j in 1: length(c)) {
+    myNames[j] <- names(training)[c[j]]
+}
+colnames(newtraining) <- myNames
+colnames(newtesting) <- myNames
+
+```
+
+
+(2) **Covariate Selection**  The new dataset (newtraining) has 103 variables after removing zero covariates, and there are 102 potential predictors.  We may want to perform a Principal Component Analysis to check if there are fewer variables that could help in the classification.
+
+NOTE:  I could not get the PCA to work.
+
+%preProc <- preProcess(newtraining[, 7:102], method = "pca", thresh = 0.95, na.remove = TRUE)
+%trainPC <- predict(preProc, newtraining[, -103])
+
+``` {r}
+
+
+```
+
+(3) **Finalizing the predictor variables**.  We next perform a correlation analysis to see which variables are correlated with each other.  This will help in reducing the number of potential predictors required.
+
+``` {r}
+M <- abs(cor(newtraining[,7:102]))
+diag(M) <- 0
+which(M > 0.8,arr.ind=T)
+
+```
+
+(4) **Discussion:** Looking at the data variable names, it appears that the following variables may make good predictors of the Class:  roll_belt, accel_belt_x, total_accel_belt, gyros_arm_x, accel_arm_x, accel_forearm_x, accel_dumbbell_x.
+
+These predictors, taken by themselves, are extremely weak.  Please see some sample predictor plots below:
+
+``` {r}
+qplot(roll_belt, classe, data=training)
+qplot(accel_belt_x, classe, data=training)
+qplot(accel_dumbbell_x, classe, data=training)
+```
+
+We select the Random Forest algorithm for predicting the classe.  However, I could not get Random Forest to work.  I am trying method = "glm" instead.
+
+``` {r}
+modelFit <- train(newtraining$classe ~ roll_belt + accel_belt_x + total_accel_belt + gyros_arm_x + accel_arm_x + accel_forearm_x + accel_dumbbell_x, method = "glm", data = newtraining)
+
+
+```
+
+% modelFit <- train(newtraining$classe ~ roll_belt + accel_belt_x + total_accel_belt + gyros_arm_x + accel_arm_x + accel_forearm_x + accel_dumbbell_x, method = "rf", data = newtraining, prox = TRUE)
+____________________________________________________________________________________________
